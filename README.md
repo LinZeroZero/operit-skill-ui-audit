@@ -22,6 +22,23 @@ tar -czf ui-audit.tar.gz --exclude='.git' -C /sdcard/Download/Operit/skills UI�
 
 装好后 Operit 侧看到的是 `skills/UI审查/SKILL.md`。
 
+## 打包
+
+`scripts/build-package.sh` 生成可安装的 `tar.gz`，顶层目录固定为技能名 `UI审查`：
+
+```sh
+sh scripts/build-package.sh /root/UI审查.tar.gz
+# OK
+# OUT=/root/UI审查.tar.gz
+# SIZE=107827
+# TOP=UI审查
+# FILES=20
+# REFS=13
+```
+
+脚本内置三条断言，任一不过就退出码 1：包内不能有 `.git` 条目、包内 `references/` 文件数必须等于磁盘文件数
+（漏包只在别人机器上暴露）、顶层目录必须是技能名。发版用的就是这个脚本的产物。
+
 ## 关键约定
 
 - **先量再判**：不许目测对比度、不许猜字号。取数逻辑统一放在 `scripts/audit.js`，
