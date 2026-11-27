@@ -27,26 +27,32 @@ tar -czf ui-audit.tar.gz --exclude='.git' -C /sdcard/Download/Operit/skills UI�
 `scripts/build-package.sh` 生成可安装的 `tar.gz`。包内顶层目录取 `SKILL.md` 的 `name:`（`UI审查`），
 不从目录名推导 —— 所以克隆下来的英文仓库目录（`operit-skill-ui-audit`）也能正确打包。
 
+前提：需要 **GNU tar**（依赖 `--exclude` / `--transform`）。macOS 上请用 `gtar`；
+Android 的 toybox tar 不满足，请在 proot 容器内跑。
+
 ```sh
 sh scripts/build-package.sh                     # 默认输出到技能目录的上一级
-sh scripts/build-package.sh /root/UI审查.tar.gz  # 也可以指定输出
+sh scripts/build-package.sh /root/UI审查.tar.gz  # 也可以指定输出（必须是文件名，不能是目录）
 # OK
 # OUT=/root/UI审查.tar.gz
-# SIZE=108585        ← 示意值：随内容与打包时间变化，别当校验值
+# SIZE=108753        ← 示意值：随内容与打包时间变化，别当校验值
 # SHA256=…           ← 校验用这个
 # TOP=UI审查
 # FILES=20
 # REFS=13
 ```
 
-出包前有**三道断言**，任一不过即退出码 1，且目标路径上不会留下半成品（先写 `<out>.tmp`，全过才 rename）：
+出包前有**四道断言**，任一不过即退出码 1，且目标路径上不会留下半成品（先写唯一临时名
+`<输出目录>/.pkg-XXXXXX`，全过才 rename）：
 
 1. 包内没有 `.git` 条目（`.git` 目录与 worktree 指针文件都算）；
 2. 包内顶层目录等于 `SKILL.md` 的 `name:`；
-3. 包内文件**集合**逐路径等于磁盘清单 —— 不是只比个数，少一个真文件、多一个残留会互相抵消。
+3. 包内没有 `.git` / `.l2s.tmp_*` 这类应被排除的条目 —— 这条**不复用**过滤后的清单，
+   归档侧漏写一条 `--exclude` 会被它直接抓住；
+4. 包内文件**集合**逐路径等于磁盘清单 —— 不是只比个数，少一个真文件、多一个残留会互相抵消。
 
-`.git` 与 `.l2s.tmp_*` 一律不进包。归档侧（`tar --exclude`）与磁盘侧（`find` + `grep`）各写一遍同一套忽略规则，
-两遍写法一旦漂移，第 3 条断言的 `diff` 会直接把差异路径打出来。发版用的就是这个脚本的产物。
+`name:` 的**尾随空白会被裁掉**；以 `.` 开头，或含 `/ \ | & $ ` `" < >` 时脚本直接报错退出 ——
+前者会产出 Operit 认不出的顶层目录，后者会改坏 `tar` / `sed` 的表达式。发版用的就是这个脚本的产物。
 
 ## 关键约定
 
