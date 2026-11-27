@@ -24,20 +24,29 @@ tar -czf ui-audit.tar.gz --exclude='.git' -C /sdcard/Download/Operit/skills UI�
 
 ## 打包
 
-`scripts/build-package.sh` 生成可安装的 `tar.gz`，顶层目录固定为技能名 `UI审查`：
+`scripts/build-package.sh` 生成可安装的 `tar.gz`。包内顶层目录取 `SKILL.md` 的 `name:`（`UI审查`），
+不从目录名推导 —— 所以克隆下来的英文仓库目录（`operit-skill-ui-audit`）也能正确打包。
 
 ```sh
-sh scripts/build-package.sh /root/UI审查.tar.gz
+sh scripts/build-package.sh                     # 默认输出到技能目录的上一级
+sh scripts/build-package.sh /root/UI审查.tar.gz  # 也可以指定输出
 # OK
 # OUT=/root/UI审查.tar.gz
-# SIZE=107827
+# SIZE=108585        ← 示意值：随内容与打包时间变化，别当校验值
+# SHA256=…           ← 校验用这个
 # TOP=UI审查
 # FILES=20
 # REFS=13
 ```
 
-脚本内置三条断言，任一不过就退出码 1：包内不能有 `.git` 条目、包内 `references/` 文件数必须等于磁盘文件数
-（漏包只在别人机器上暴露）、顶层目录必须是技能名。发版用的就是这个脚本的产物。
+出包前有**三道断言**，任一不过即退出码 1，且目标路径上不会留下半成品（先写 `<out>.tmp`，全过才 rename）：
+
+1. 包内没有 `.git` 条目（`.git` 目录与 worktree 指针文件都算）；
+2. 包内顶层目录等于 `SKILL.md` 的 `name:`；
+3. 包内文件**集合**逐路径等于磁盘清单 —— 不是只比个数，少一个真文件、多一个残留会互相抵消。
+
+`.git` 与 `.l2s.tmp_*` 一律不进包。归档侧（`tar --exclude`）与磁盘侧（`find` + `grep`）各写一遍同一套忽略规则，
+两遍写法一旦漂移，第 3 条断言的 `diff` 会直接把差异路径打出来。发版用的就是这个脚本的产物。
 
 ## 关键约定
 
