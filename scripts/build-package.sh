@@ -89,9 +89,9 @@ LISTS=$(mktemp -d)
 ) >"$LISTS/disk.list"
 [ -s "$LISTS/disk.list" ] || die "$SKILL_DIR 下没有可打包的文件"
 
+TMP_OUT=$(mktemp "$OUT_DIR/.pkg-XXXXXX") || die "无法在 $OUT_DIR 创建临时文件"
 # 分隔符用 / 而不是 |：目录名是单个路径分量，本身不可能含 /；NAME 含 / 会被上面的校验挡掉。
 # 用 | 的话，仓库目录名里一个 | 就能把表达式切成多段（tar: Unknown flag in transform expression）。
-TMP_OUT=$(mktemp "$OUT_DIR/.pkg-XXXXXX") || die "无法在 $OUT_DIR 创建临时文件"
 tar -czf "$TMP_OUT" \
   --exclude="$DIR_NAME/.git" --exclude="$DIR_NAME/.git/*" \
   --exclude="$DIR_NAME/.l2s.tmp_*" --exclude="*/.l2s.tmp_*" \
