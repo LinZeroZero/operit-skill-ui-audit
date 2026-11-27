@@ -53,10 +53,14 @@ esac
 if printf '%s' "$NAME" | grep -Eq '[/\\|&$`"<>]'; then
   die "name 含不能用于路径或 sed/tar 表达式的字符: $NAME"
 fi
-NAME_RE=$(printf '%s' "$NAME" | sed 's/[][\\.*^$+?(){}]/\\&/g')
+# 只转义 BRE 真正的元字符：[ ] . * ^ $\
+# 别把 + ? ( ) { } 也转义 —— 在 BRE 里 \+ \? 是 GNU 重复算子、\( \{ 是分组/区间算子，
+# 转义它们等于把「字面量」变成「操作符」：a+b 匹配不上、a(b 直接 sed: Unmatched (。
+NAME_RE=$(printf '%s' "$NAME" | sed 's/[][\\.*^$]/\\&/g')
 
 DIR_NAME=$(basename -- "$SKILL_DIR")
-DIR_RE=$(printf '%s' "$DIR_NAME" | sed 's/[][\\.*^$+?(){}]/\\&/g')
+# 同一条 BRE 安全规则：目录名可能带 . + ( { 等合法字符
+DIR_RE=$(printf '%s' "$DIR_NAME" | sed 's/[][\\.*^$]/\\&/g')
 PARENT=$(CDPATH= cd -- "$SKILL_DIR/.." && pwd)
 
 OUT=${1:-"$PARENT/$NAME-$(date +%Y%m%d).tar.gz"}
@@ -111,9 +115,10 @@ fi
 # 断言 3：包内不许出现「应被排除的条目」。
 # 这一条不复用 IGNORE_ERE 过滤后的结果 —— 归档侧要是漏写一条排除，残留会静默进包，
 # 而断言 4 的两侧会同时把它过滤掉、diff 相等。所以直接在原始清单上查。
-if grep -Ev '/$' "$LISTS/pkg.raw" | grep -Eq "$IGNORE_ERE"; then
+# 也不能先剔掉目录条目：空的 .l2s.tmp_dir/ 只剩目录条目，剔掉就两头都查不到。
+if grep -Eq "$IGNORE_ERE" "$LISTS/pkg.raw"; then
   printf 'FAIL: 包内有应被排除的条目（归档侧 --exclude 与忽略规则不一致）:\n'
-  grep -Ev '/$' "$LISTS/pkg.raw" | grep -E "$IGNORE_ERE" | sed -n '1,20p'
+  grep -E "$IGNORE_ERE" "$LISTS/pkg.raw" | sed -n '1,20p'
   exit 1
 fi
 
@@ -129,6 +134,11 @@ fi
 
 FILES=$(grep -c . "$LISTS/pkg.list" || true)
 REFS=$(grep -c '^references/' "$LISTS/pkg.list" || true)
+
+# mktemp 建的是 0600，tar 往已有文件里写不改权限，直接 mv 出去产物就成了 0600 ——
+# 共享构建机上的另一个用户会读不到。按当前 umask 还原成常规文件权限。
+MODE=$(printf '%o' $((0666 & ~0$(umask))))
+chmod "$MODE" "$TMP_OUT"
 
 mv -f "$TMP_OUT" "$OUT_ABS"
 TMP_OUT=""
